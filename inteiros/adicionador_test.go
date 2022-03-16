@@ -9,13 +9,6 @@ import (
 func Adiciona(x, y int) int {
 	return x + y
 }
-func ExampleAdiciona() {
-	soma := Adiciona(1, 5)
-	fmt.Println(soma)
-	// Output: 6
-
-}
-
 func TestAdicionador(t *testing.T) {
 	soma := Adiciona(2, 2)
 	esperado := 4
@@ -24,5 +17,9 @@ func TestAdicionador(t *testing.T) {
 		t.Errorf("esperado '%d', resultado '%d'", esperado, soma)
 
 	}
-
+}
+func ExampleAdiciona() {
+	soma := Adiciona(1, 5)
+	fmt.Println(soma)
+	// Output: 6
 }
