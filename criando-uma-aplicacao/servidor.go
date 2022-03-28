@@ -26,9 +26,43 @@ type ServidorJogador struct {
 	armazenamento ArmazenamentoJogador
 	http.Handler
 }
-
 type SistemaDeArquivoDeArmazenamentoDoJogador struct {
 	bancoDeDados io.ReadWriteSeeker
+	liga         Liga
+}
+
+func NovoSistemaDeArquivoDeArmazenamentoDoJogador(bancoDeDados io.ReadWriteSeeker) *SistemaDeArquivoDeArmazenamentoDoJogador {
+	bancoDeDados.Seek(0, 0)
+	liga, _ := NovaLiga(bancoDeDados)
+	return &SistemaDeArquivoDeArmazenamentoDoJogador{
+		bancoDeDados: bancoDeDados,
+		liga:         liga,
+	}
+}
+
+func (f *SistemaDeArquivoDeArmazenamentoDoJogador) ObterPontuacaoJogador(nome string) int {
+
+	jogador := f.liga.Find(nome)
+
+	if jogador != nil {
+		return jogador.Vitorias
+	}
+
+	return 0
+}
+
+func (f *SistemaDeArquivoDeArmazenamentoDoJogador) RegistrarVitoria(nome string) {
+	liga := f.ObterLiga()
+	jogador := f.liga.Find(nome)
+
+	if jogador != nil {
+		jogador.Vitorias++
+	} else {
+		liga = append(liga, Jogador{nome, 1})
+	}
+
+	f.bancoDeDados.Seek(0, 0)
+	json.NewEncoder(f.bancoDeDados).Encode(liga)
 }
 
 func (f *SistemaDeArquivoDeArmazenamentoDoJogador) ObterLiga() []Jogador {
@@ -62,13 +96,6 @@ func NovoServidorJogador(armazenamento ArmazenamentoJogador) *ServidorJogador {
 func (s *ServidorJogador) manipulaLiga(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(s.armazenamento.ObterLiga())
 	w.Header().Set("content-type", "application/json")
-}
-
-func (s *ServidorJogador) obterTabelaDaLiga() []Jogador {
-	return []Jogador{
-		{"Chris", 20},
-	}
-
 }
 
 func (s *ServidorJogador) manipulaJogadores(w http.ResponseWriter, r *http.Request) {
@@ -109,12 +136,6 @@ func (a *ArmazenamentoJogadorEmMemoria) ObterLiga() []Jogador {
 	return liga
 }
 
-func (f *SistemaDeArquivoDeArmazenamentoDoJogador) PegaLiga() []Jogador {
-	var liga []Jogador
-	json.NewDecoder(f.bancoDeDados).Decode(&liga)
-	return liga
-}
-
 type Reader interface {
 	Read(p []byte) (n int, err error)
 }
@@ -125,29 +146,4 @@ type ReadSeeker interface {
 }
 type Seeker interface {
 	Seek(offset int64, whence int) (int64, error)
-}
-
-func (f *SistemaDeArquivoDeArmazenamentoDoJogador) PontuacaoJogador(nome string) int {
-
-	jogador := f.PegaLiga().Find(nome)
-
-	if jogador != nil {
-		return jogador.Vitorias
-	}
-
-	return 0
-}
-
-func (f *SistemaDeArquivoDeArmazenamentoDoJogador) SalvaVitoria(nome string) {
-	liga := f.PegaLiga()
-	jogador := liga.Find(nome)
-
-	if jogador != nil {
-		jogador.Wins++
-	} else {
-		liga = append(liga, Jogador{nome, 1})
-	}
-
-	f.bancoDeDados.Seek(0, 0)
-	json.NewEncoder(f.bancoDeDados).Encode(liga)
 }

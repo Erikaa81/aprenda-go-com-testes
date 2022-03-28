@@ -1,9 +1,5 @@
 package main
 
-func NovoArmazenamentoJogadorEmMemoria() *ArmazenamentoJogadorEmMemoria {
-	return &ArmazenamentoJogadorEmMemoria{map[string]int{}}
-}
-
 type ArmazenamentoJogadorEmMemoria struct {
 	armazenamento map[string]int
 }

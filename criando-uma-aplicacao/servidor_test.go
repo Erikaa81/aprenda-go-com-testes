@@ -101,47 +101,6 @@ func novaRequisicaoRegistrarVitoriaPost(nome string) *http.Request {
 	return requisicao
 }
 
-func verificaTipoDoConteudo(t *testing.T, resposta *httptest.ResponseRecorder, esperado string) {
-	t.Helper()
-	if resposta.Result().Header.Get("content-type") != esperado {
-		t.Errorf("resposta não obteve content-type de %s, obtido %v", esperado, resposta.Result().Header)
-	}
-}
-func TestGravarVitoriasEBuscarEstasVitorias(t *testing.T) {
-	armazenamento := NovoArmazenamentoJogadorEmMemoria()
-	servidor := NovoServidorJogador(armazenamento)
-	jogador := "Pepper"
-
-	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
-	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
-	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
-
-	t.Run("obter pontuação", func(t *testing.T) {
-		resposta := httptest.NewRecorder()
-		servidor.ServeHTTP(resposta, novaRequisicaoObterPontuacao(jogador))
-		verificarRespostaCodigoStatus(t, resposta.Code, http.StatusOK)
-
-		verificarCorpoRequisicao(t, resposta.Body.String(), "3")
-	})
-
-	t.Run("obter liga", func(t *testing.T) {
-		resposta := httptest.NewRecorder()
-		servidor.ServeHTTP(resposta, novaRequisicaoDeLiga())
-		verificarRespostaCodigoStatus(t, resposta.Code, http.StatusOK)
-
-		obtido := obterLigaDaResposta(t, resposta.Body)
-		esperado := []Jogador{
-			{"Pepper", 3},
-		}
-		verificaLiga(t, obtido, esperado)
-	})
-	resposta := httptest.NewRecorder()
-	servidor.ServeHTTP(resposta, novaRequisicaoObterPontuacao(jogador))
-	verificarRespostaCodigoStatus(t, resposta.Code, http.StatusOK)
-
-	verificarCorpoRequisicao(t, resposta.Body.String(), "3")
-
-}
 func TestLiga(t *testing.T) {
 	armazenamento := EsbocoArmazenamentoJogador{}
 	servidor := NovoServidorJogador(&armazenamento)
@@ -215,9 +174,12 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
             {"Nome": "Chris", "Vitorias": 33}]`)
 		defer limpaBancoDeDados()
 
-		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{bancoDeDados}
+		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
+			bancoDeDados: bancoDeDados,
+			liga:         []Jogador{},
+		}
 
-		recebido := armazenamento.PegaLiga()
+		recebido := armazenamento.ObterLiga()
 
 		esperado := []Jogador{
 			{"Cleo", 10},
@@ -226,7 +188,7 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
 
 		defineLiga(t, recebido, esperado)
 
-		recebido = armazenamento.PegaLiga()
+		recebido = armazenamento.ObterLiga()
 		defineLiga(t, recebido, esperado)
 	})
 
@@ -236,10 +198,30 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
             {"Nome": "Chris", "Vitorias": 33}]`)
 		defer limpaBancoDeDados()
 
-		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{bancoDeDados}
+		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
+			bancoDeDados: bancoDeDados,
+			liga:         []Jogador{},
+		}
 
-		recebido := armazenamento.PontuacaoJogador("Chris")
+		recebido := armazenamento.ObterPontuacaoJogador("Chris")
 		esperado := 33
+		definePontuacao(t, recebido, esperado)
+	})
+	t.Run("armazena vitórias de um jogador existente", func(t *testing.T) {
+		bancoDeDados, limpaBancoDeDados := criaArquivoTemporario(t, `[
+			{"Nome": "Cleo", "Vitorias": 10},
+			{"Nome": "Chris", "Vitorias": 33}]`)
+		defer limpaBancoDeDados()
+
+		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
+			bancoDeDados: bancoDeDados,
+			liga:         []Jogador{},
+		}
+
+		armazenamento.RegistrarVitoria("Chris")
+
+		recebido := armazenamento.ObterPontuacaoJogador("Chris")
+		esperado := 34
 		definePontuacao(t, recebido, esperado)
 	})
 
@@ -247,13 +229,17 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
 		bancoDeDados, limpaBancoDeDados := criaArquivoTemporario(t, `[
 			{"Nome": "Cleo", "Vitorias": 10},
 			{"Nome": "Chris", "Vitorias": 33}]`)
+
 		defer limpaBancoDeDados()
 
-		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{bancoDeDados}
+		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
+			bancoDeDados: bancoDeDados,
+			liga:         []Jogador{},
+		}
 
-		armazenamento.SalvaVitoria("Pepper")
+		armazenamento.RegistrarVitoria("Pepper")
 
-		recebido := armazenamento.PontuacaoJogador("Pepper")
+		recebido := armazenamento.ObterPontuacaoJogador("Pepper")
 		esperado := 1
 		definePontuacao(t, recebido, esperado)
 	})
@@ -274,11 +260,7 @@ func defineLiga(t *testing.T, recebido, esperado []Jogador) {
 	}
 
 }
-func (f *SistemaDeArquivoDeArmazenamentoDoJogador) pegaLiga() []Jogador {
-	liga, _ := NovaLiga(f.bancoDeDados)
-	return liga
 
-}
 func criaArquivoTemporario(t *testing.T, dadoInicial string) (io.ReadWriteSeeker, func()) {
 	t.Helper()
 
