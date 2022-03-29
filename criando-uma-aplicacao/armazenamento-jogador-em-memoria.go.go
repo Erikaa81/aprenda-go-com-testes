@@ -1,4 +1,4 @@
-package main
+package poquer
 
 type ArmazenamentoJogadorEmMemoria struct {
 	armazenamento map[string]int

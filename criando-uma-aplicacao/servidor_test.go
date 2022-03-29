@@ -1,4 +1,4 @@
-package main
+package poquer
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestObterJogadores(t *testing.T) {
+func TestGETJogadores(t *testing.T) {
 	armazenamento := EsbocoArmazenamentoJogador{
 		map[string]int{
 			"Maria": 20,
@@ -162,7 +162,6 @@ func TestLiga(t *testing.T) {
 		verificarRespostaCodigoStatus(t, resposta.Code, http.StatusOK)
 		defineLiga(t, recebido, ligaEsperada)
 		defineTipoDeConteudo(t, resposta, jsonContentType)
-		servidor.ServeHTTP(resposta, requisicao)
 
 	})
 
