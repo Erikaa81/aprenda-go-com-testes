@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"os"
+	"sort"
 )
 
 type Jogador struct {
@@ -27,17 +28,50 @@ type ServidorJogador struct {
 	http.Handler
 }
 type SistemaDeArquivoDeArmazenamentoDoJogador struct {
-	bancoDeDados io.ReadWriteSeeker
+	bancoDeDados *json.Encoder
 	liga         Liga
 }
 
-func NovoSistemaDeArquivoDeArmazenamentoDoJogador(bancoDeDados io.ReadWriteSeeker) *SistemaDeArquivoDeArmazenamentoDoJogador {
-	bancoDeDados.Seek(0, 0)
-	liga, _ := NovaLiga(bancoDeDados)
-	return &SistemaDeArquivoDeArmazenamentoDoJogador{
-		bancoDeDados: bancoDeDados,
-		liga:         liga,
+type Reader interface {
+	Read(p []byte) (n int, err error)
+}
+
+const jsonContentType = "application/json"
+
+func NovoSistemaDeArquivoDeArmazenamentoDoJogador(arquivo *os.File) (*SistemaDeArquivoDeArmazenamentoDoJogador, error) {
+
+	err := iniciaArquivoBDDeJogador(arquivo)
+
+	if err != nil {
+		return nil, fmt.Errorf("problema inicializando arquivo do jogador, %v", err)
 	}
+
+	liga, err := NovaLiga(arquivo)
+
+	if err != nil {
+		return nil, fmt.Errorf("problema carregando armazenamento de jogador do arquivo %s, %v", arquivo.Name(), err)
+	}
+
+	return &SistemaDeArquivoDeArmazenamentoDoJogador{
+		bancoDeDados: json.NewEncoder(&fita{arquivo}),
+		liga:         liga,
+	}, nil
+}
+func iniciaArquivoBDDeJogador(arquivo *os.File) error {
+	arquivo.Seek(0, 0)
+
+	info, err := arquivo.Stat()
+
+	if err != nil {
+		return fmt.Errorf("problema ao usar arquivo %s, %v", arquivo.Name(), err)
+	}
+
+	if info.Size() == 0 {
+		arquivo.Write([]byte("[]"))
+		arquivo.Seek(0, 0)
+	}
+
+	return nil
 }
 
 func (f *SistemaDeArquivoDeArmazenamentoDoJogador) ObterPontuacaoJogador(nome string) int {
@@ -52,23 +86,22 @@ func (f *SistemaDeArquivoDeArmazenamentoDoJogador) ObterPontuacaoJogador(nome st
 }
 
 func (f *SistemaDeArquivoDeArmazenamentoDoJogador) RegistrarVitoria(nome string) {
-	liga := f.ObterLiga()
 	jogador := f.liga.Find(nome)
 
 	if jogador != nil {
 		jogador.Vitorias++
 	} else {
-		liga = append(liga, Jogador{nome, 1})
+		f.liga = append(f.liga, Jogador{nome, 1})
 	}
 
-	f.bancoDeDados.Seek(0, 0)
-	json.NewEncoder(f.bancoDeDados).Encode(liga)
+	f.bancoDeDados.Encode(f.liga)
 }
 
 func (f *SistemaDeArquivoDeArmazenamentoDoJogador) ObterLiga() []Jogador {
-	f.bancoDeDados.Seek(0, 0)
-	liga, _ := NovaLiga(f.bancoDeDados)
-	return liga
+	sort.Slice(f.liga, func(i, j int) bool {
+		return f.liga[i].Vitorias > f.liga[j].Vitorias
+	})
+	return f.liga
 }
 
 func (e *EsbocoArmazenamentoJogador) ObterPontuacaoJogador(nome string) int {
@@ -86,19 +119,19 @@ func NovoServidorJogador(armazenamento ArmazenamentoJogador) *ServidorJogador {
 	s.armazenamento = armazenamento
 
 	roteador := http.NewServeMux()
-	roteador.Handle("/liga", http.HandlerFunc(s.manipulaLiga))
-	roteador.Handle("/jogadores/", http.HandlerFunc(s.manipulaJogadores))
+	roteador.Handle("/liga", http.HandlerFunc(s.ManipulaLiga))
+	roteador.Handle("/jogadores/", http.HandlerFunc(s.ManipulaJogadores))
 
 	s.Handler = roteador
 
 	return s
 }
-func (s *ServidorJogador) manipulaLiga(w http.ResponseWriter, r *http.Request) {
+func (s *ServidorJogador) ManipulaLiga(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", jsonContentType)
 	json.NewEncoder(w).Encode(s.armazenamento.ObterLiga())
-	w.Header().Set("content-type", "application/json")
 }
 
-func (s *ServidorJogador) manipulaJogadores(w http.ResponseWriter, r *http.Request) {
+func (s *ServidorJogador) ManipulaJogadores(w http.ResponseWriter, r *http.Request) {
 	jogador := r.URL.Path[len("/jogadores/"):]
 
 	switch r.Method {
@@ -124,31 +157,6 @@ func (s *ServidorJogador) registrarVitoria(w http.ResponseWriter, jogador string
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *ServidorJogador) obterTabelaDaLiga() []Jogador {
-	return []Jogador{
-		{"Chris", 20},
-	}
-}
 func (s *EsbocoArmazenamentoJogador) ObterLiga() []Jogador {
 	return s.liga
-}
-
-func (a *ArmazenamentoJogadorEmMemoria) ObterLiga() []Jogador {
-	var liga []Jogador
-	for nome, vitórias := range a.armazenamento {
-		liga = append(liga, Jogador{nome, vitórias})
-	}
-	return liga
-}
-
-type Reader interface {
-	Read(p []byte) (n int, err error)
-}
-
-type ReadSeeker interface {
-	Reader
-	Seeker
-}
-type Seeker interface {
-	Seek(offset int64, whence int) (int64, error)
 }

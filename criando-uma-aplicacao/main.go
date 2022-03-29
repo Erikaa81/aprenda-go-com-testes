@@ -15,7 +15,11 @@ func main() {
 		log.Fatalf("problema abrindo %s %v", dbFileName, err)
 	}
 
-	armazenamento := NovoSistemaDeArquivoDeArmazenamentoDoJogador(db)
+	armazenamento, err := NovoSistemaDeArquivoDeArmazenamentoDoJogador(db)
+
+	if err != nil {
+		log.Fatalf("problema criando o sistema de arquivo do armazenamento do jogador, %v ", err)
+	}
 	server := NovoServidorJogador(armazenamento)
 
 	if err := http.ListenAndServe(":5000", server); err != nil {
