@@ -70,6 +70,7 @@ func verificarRespostaCodigoStatus(t *testing.T, recebido, esperado int) {
 		t.Errorf("não recebeu código de status HTTP esperado, recebido %d, esperado %d", recebido, esperado)
 	}
 }
+
 func TestArmazenamentoVitorias(t *testing.T) {
 	armazenamento := EsbocoArmazenamentoJogador{
 		map[string]int{},

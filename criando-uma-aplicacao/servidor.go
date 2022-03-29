@@ -18,11 +18,6 @@ type ArmazenamentoJogador interface {
 	ObterLiga() []Jogador
 }
 
-type EsbocoArmazenamentoJogador struct {
-	pontuacoes        map[string]int
-	registrosVitorias []string
-	liga              []Jogador
-}
 type ServidorJogador struct {
 	armazenamento ArmazenamentoJogador
 	http.Handler
@@ -57,6 +52,27 @@ func NovoSistemaDeArquivoDeArmazenamentoDoJogador(arquivo *os.File) (*SistemaDeA
 		liga:         liga,
 	}, nil
 }
+
+func ArmazenamentoSistemaDeArquivoJogadorAPartirDeArquivo(path string) (*SistemaDeArquivoDeArmazenamentoDoJogador, func(), error) {
+	db, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("falha ao abrir %s %v", path, err)
+	}
+
+	closeFunc := func() {
+		db.Close()
+	}
+
+	armazenamento, err := NovoSistemaDeArquivoDeArmazenamentoDoJogador(db)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("falha ao criar sistema de arquivos para armazenar jogadores, %v ", err)
+	}
+
+	return armazenamento, closeFunc, nil
+}
+
 func iniciaArquivoBDDeJogador(arquivo *os.File) error {
 	arquivo.Seek(0, 0)
 
@@ -104,15 +120,6 @@ func (f *SistemaDeArquivoDeArmazenamentoDoJogador) ObterLiga() []Jogador {
 	return f.liga
 }
 
-func (e *EsbocoArmazenamentoJogador) ObterPontuacaoJogador(nome string) int {
-	pontuacao := e.pontuacoes[nome]
-	return pontuacao
-}
-
-func (e *EsbocoArmazenamentoJogador) RegistrarVitoria(nome string) {
-	e.registrosVitorias = append(e.registrosVitorias, nome)
-}
-
 func NovoServidorJogador(armazenamento ArmazenamentoJogador) *ServidorJogador {
 	s := new(ServidorJogador)
 
@@ -155,8 +162,4 @@ func (s *ServidorJogador) mostrarPontuacao(w http.ResponseWriter, jogador string
 func (s *ServidorJogador) registrarVitoria(w http.ResponseWriter, jogador string) {
 	s.armazenamento.RegistrarVitoria(jogador)
 	w.WriteHeader(http.StatusAccepted)
-}
-
-func (s *EsbocoArmazenamentoJogador) ObterLiga() []Jogador {
-	return s.liga
 }
