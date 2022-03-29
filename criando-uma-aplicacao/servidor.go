@@ -124,6 +124,11 @@ func (s *ServidorJogador) registrarVitoria(w http.ResponseWriter, jogador string
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func (s *ServidorJogador) obterTabelaDaLiga() []Jogador {
+	return []Jogador{
+		{"Chris", 20},
+	}
+}
 func (s *EsbocoArmazenamentoJogador) ObterLiga() []Jogador {
 	return s.liga
 }

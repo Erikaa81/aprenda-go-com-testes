@@ -166,7 +166,7 @@ func novaRequisicaoDeLiga() *http.Request {
 	return req
 }
 
-func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
+func TestArmazenamentoDeSistemaDeArquivo(t *testing.T) {
 
 	t.Run("liga de um leitor", func(t *testing.T) {
 		bancoDeDados, limpaBancoDeDados := criaArquivoTemporario(t, `[
@@ -200,13 +200,17 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
 
 		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
 			bancoDeDados: bancoDeDados,
-			liga:         []Jogador{},
+			liga: []Jogador{
+				{"Cleo", 10},
+				{"Chris", 33},
+			},
 		}
 
 		recebido := armazenamento.ObterPontuacaoJogador("Chris")
 		esperado := 33
 		definePontuacao(t, recebido, esperado)
 	})
+
 	t.Run("armazena vitórias de um jogador existente", func(t *testing.T) {
 		bancoDeDados, limpaBancoDeDados := criaArquivoTemporario(t, `[
 			{"Nome": "Cleo", "Vitorias": 10},
@@ -215,11 +219,12 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
 
 		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
 			bancoDeDados: bancoDeDados,
-			liga:         []Jogador{},
+			liga: []Jogador{
+				{"Cleo", 10},
+				{"Chris", 33},
+			},
 		}
-
 		armazenamento.RegistrarVitoria("Chris")
-
 		recebido := armazenamento.ObterPontuacaoJogador("Chris")
 		esperado := 34
 		definePontuacao(t, recebido, esperado)
@@ -234,9 +239,10 @@ func TestaArmazenamentoDeSistemaDeArquivo(t *testing.T) {
 
 		armazenamento := SistemaDeArquivoDeArmazenamentoDoJogador{
 			bancoDeDados: bancoDeDados,
-			liga:         []Jogador{},
+			liga: []Jogador{
+				{"Pepper", 0},
+			},
 		}
-
 		armazenamento.RegistrarVitoria("Pepper")
 
 		recebido := armazenamento.ObterPontuacaoJogador("Pepper")
