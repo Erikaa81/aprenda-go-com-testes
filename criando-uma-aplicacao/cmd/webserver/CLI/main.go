@@ -11,7 +11,7 @@ import (
 const dbFileName = "game.db.json"
 
 func main() {
-	armazenamento, close, err := poquer.armazenamentoSistemaDeArquivoJogadorAPartirDeArquivo(dbFileName)
+	armazenamento, close, err := poquer.ArmazenamentoSistemaDeArquivoJogadorAPartirDeArquivo(dbFileName)
 
 	if err != nil {
 		log.Fatal(err)
@@ -20,5 +20,5 @@ func main() {
 
 	fmt.Println("Vamos jogar poquer")
 	fmt.Println("Digite {Nome} venceu para registrar uma vitoria")
-	poquer.NovoCLI(armazenamento, os.Stdin).JogarPoquer()
+	poquer.NovoCLI(armazenamento, os.Stdin, poquer.BlindAlerterFunc(poquer.StdOutAlerter)).JogarPoquer()
 }
